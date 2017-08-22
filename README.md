@@ -1,1 +1,45 @@
-# Topology
+%==========================================================================
+%~~~~~~~~~~~~~~~~~~ooooo~~~~ooooo~~~~0~~~0~~~~ooooo~~~~~~~~~~~~~~~~~~~~~~~~
+%~~~~~~~~~~~~~~~~~~~~0~~~~~~~~0~~~~~~0o~~0~~~~0~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%~~~~~~~~~~~~~~~~~~~~0~~~~~~~~0~~~~~~0~o~0~~~~0~oo0~~~~~~~~~~~~~~~~~~~~~~~~
+%~~~~~~~~~~~~~~~~~~~~0~~~~~~~~0~~~~~~0~~o0~~~~0~~~0~~~~~~~~~~~~~~~~~~~~~~~~
+%-----------------ooo0------oo0oo----0---0----0oooo------------------------
+%==========================================================================
+
+%                        ^---^     Meow~~~
+%                      =(o . o)=
+%                        ||=||
+%________________________UU-UU_____________________________________________
+%__________________________________________________________________________
+%                          |
+%                          j
+
+
+%This code is for modelling Band
+function [ mat_deflation ] = deflation( mat,steps )
+%deflating the geometry mat with each step of n
+%mat should in the direction of top cleat network, 1 is cleats which is the
+%target phase
+%%
+%mat_deflation=double(mat);
+for k=1:size(mat,3)
+    poro=sum(sum(mat(:,:,k)));
+    %mat(:,:,k)=imresize(matt(:,:,k),3);
+    mat_deflation(:,:,k)=double(mat(:,:,k));
+    if poro~=0
+        %mat(:,:,k)=imresize(matt(:,:,k),2);
+        %mat_deflation(:,:,k)=mat(:,:,k);
+        for i=1:steps
+            boundary=bwmorph(mat(:,:,k),'remove');
+            layer_deflation=mat_deflation(:,:,k);
+            layer_deflation(boundary)=i+1;
+            mat_deflation(:,:,k)=layer_deflation;
+            layer=mat(:,:,k);
+            layer(boundary)=0;
+            mat(:,:,k)=layer;
+            
+        end
+    else
+        %mat_deflation(:,:,k)=imresize(matt(:,:,k),2);
+    end
+end
