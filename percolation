@@ -1,0 +1,30 @@
+function [ poro, perc ] = poro_perco( mat, l, bin )
+%scan the geometry mat with a window of side length l, the output is porosity probability
+%when l is odd
+[m, n, h]=size(mat);
+radi=(l-1)/2;
+rangex=radi+1:n-radi;
+rangey=radi+1:m-radi;
+rangez=radi+1:h-radi;
+ind_x=randi(length(rangex), bin);
+ind_y=randi(length(rangey), bin);
+ind_z=randi(length(rangez), bin);
+x=rangex(ind_x);
+y=rangex(ind_y);
+z=rangex(ind_z);
+for i=1:length(x)
+    subsample=mat(y(i)-radi:y(i)+radi,x(i)-radi:x(i)+radi,z(i)-radi:z(i)+radi);
+    poro(i)=sum(subsample(:))/numel(subsample);
+    if poro(i)==0
+        perc(i)=0;
+    else if poro(i)==1
+            perc(i)=1;
+        else
+        subsample_label=bwlabeln(subsample);
+       % perc(i)=isempty(setdiff(unique(subsample_label(:,:,1)),unique(subsample_label(:,:,end))));
+        cluster=intersect(unique(subsample_label(:,:,1)),unique(subsample_label(:,:,end)),'rows'); 
+        perc(i)=~isempty(find(cluster>0, 1));
+        end
+    
+    end
+end
