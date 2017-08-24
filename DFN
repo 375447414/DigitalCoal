@@ -1,0 +1,303 @@
+clear;close all;clc
+m=100;
+n=100;
+h=ceil(m/4.5);
+pixel=4.1;
+a=2;
+M=m*pixel*a;
+N=n*pixel*a;
+H=h*pixel;
+MM=m*a;
+NN=n*a;
+gapx=MM*pixel-M;
+gapy=NN*pixel-N;
+binary=zeros(MM,NN);
+
+%>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+%aperture_dist=load('segmentedsq_aperture.txt');
+
+%-----------------------finding the spaced x coordinates
+spacing_dist_vert=load('segmentedsq_spacing_vert.txt')*pixel;
+xplus(1)=rand(1,1)*M;
+xminus(1)=xplus(1);
+SPACE=[];
+for i=2:50
+    space=spacing_dist_vert(randperm(size(spacing_dist_vert,1)));
+    xplus(i)=xplus(i-1)+space;
+    SPACE=[SPACE,space];
+    if xplus(i)>M
+        break
+    end
+end
+for i=2:50
+    space=spacing_dist_vert(randperm(size(spacing_dist_vert,1)));
+    xminus(i)=xminus(i-1)-space;
+    SPACE=[SPACE,space];
+    if xminus(i)<0
+        break
+    end
+end
+xx=[fliplr(xminus(1:end-1)),xplus(2:end-1)];
+
+
+%------------------------y coordinates
+%length_dist=load('segmentedsq_length_vert.txt');
+%length_dist_large=length_dist(find(length_dist>300))*pixel;
+%length_dist=length_dist(find(length_dist>70))*pixel;
+azimuth_dist=load('segmentedsq_orientation_lengthfrequency_vert.txt')*pi/180;
+%y=rand(1,1)*N;
+
+y=N/2;
+L=[];
+X1=[];X2=[];Y1=[];Y2=[];
+xtoll={};
+ytoll={};
+ct_vert=[];
+AZIMUTH=[];
+for i=1:size(xx,2)
+    x=xx(i);
+    %length=length_dist_large(randperm(size(length_dist_large,1),1));
+    azimuth=azimuth_dist(randperm(size(azimuth_dist,1),1));
+    length=abs(m*pixel/sin(azimuth));
+    [BINARY,x1,x2,y1,y2]=voxelization2d(binary,MM,NN,pixel,x,y,length,azimuth);
+    %bin=BINARY(MM/2-m/2:MM/2+m/2,NN/2-n/2:NN/2+n/2);
+    binary=BINARY;
+    ct_vert=[ct_vert;x,y,length,azimuth];
+    L=[L,length];
+    X1=[X1,x1];
+    X2=[X2,x2];
+    Y1=[Y1,y1];%upper point
+    Y2=[Y2,y2];%lower point
+    AZIMUTH=[AZIMUTH,azimuth];
+    xtoll{i}=[x1,x2];   %this is for intersection calculation
+    ytoll{i}=[y1,y2];
+    hold on
+end
+bin=binary(MM/2-m/2:MM/2+m/2-1,NN/2-n/2:NN/2+n/2-1);
+length_vert_check=sum(sum(bin))*pixel;
+length_vert_total=sum(sum(logical(~load('segmentedsq_vertical_final.txt'))));
+%length_vert_total=sum(length_dist)*pixel;
+nr=size(L,2);
+
+
+
+%extending the face cleats in z direction
+P1=[X1',Y1',zeros(size(X1,2),1)];
+P2=[X2',Y2',zeros(size(X2,2),1)];
+%dip_dist=load('front_vertical_orientation.txt');
+P3=[];
+P4=[];
+xtoll_1={};
+ytoll_2={};
+for i=1:size(X1,2)
+    p1=P1(i,:);
+    p2=P2(i,:);
+    azimuth1=AZIMUTH(i);
+    dip1=0;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    l1=L(i);
+    %dip1=dip_dist(randperm(size(dip_dist,1),1))%+pi/2;
+    [p3,p4]=top_vertical(h,pixel,p1,p2,azimuth1,dip1,l1);
+    P3=[P3;p3];
+    P4=[P4;p4];
+    xtoll_1{i}=[p3(1),p4(1)];
+    ytoll_1{i}=[p3(2),p4(2)];
+end
+
+
+%----------------------------BUTT CLEATS------------------------------------
+%>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+%<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+xx_dif=xx(2:end)-xx(1:end-1);
+xx_mid=xx(1:end-1)+xx_dif/2;
+spacing_dist_horiz=load('segmentedsq_spacing_horiz.txt')'*pixel;
+azimuth_dist=load('segmentedsq_orientation_lengthfrequency_horiz.txt')*pi/180;
+length_dist=SPACE;
+nr_butt=size(xx_mid,2);
+for i=1:nr_butt
+    yplus{i}(1)=rand(1,1)*N;
+    
+    for j=2:50
+        yplus{i}(j)=yplus{i}(j-1)+spacing_dist_horiz(randperm(size(spacing_dist_horiz,1)));
+        if yplus{i}(j)>N
+            break
+
+        end
+    end
+end
+for i=1:nr_butt
+    yminus{i}(1)=yplus{i}(1);
+    for j=2:50
+        yminus{i}(j)=yminus{i}(j-1)-spacing_dist_horiz(randperm(size(spacing_dist_horiz,1)));
+        if yminus{i}(j)<0
+            break
+        end
+    end
+end
+for i=1:nr_butt
+    yy{i}=[fliplr(yminus{i}(1:end-1)),yplus{i}(2:end-1)];
+end
+
+CT=[];
+%AZIMUTH_B={};
+for j=1:nr_butt
+    x_butt_end{j}=[];
+    y_butt_end{j}=[];
+    AZIMUTH_B{j}=[];
+    CT{j}=[];
+    %for i=1:fix(nr/nr_butt)
+    %x=gapx+rand(1,1)*M;
+    x=xx_mid(j);
+    %x=xx_mid(randperm(size(xx_mid,2),1));
+    %y=gapy+rand(1,1)*N;
+    Y=yy{j};%(randperm(size(yy{j},2),size(yy{j},2)));
+    for i=1:size(Y,2)
+        y=Y(i);
+        length=SPACE(j)*3;
+        %length=length_dist(randperm(size(length_dist,1),1));
+        azimuth=azimuth_dist(randperm(size(azimuth_dist,1),1));
+        [x1,x2,y1,y2]=voxelization2d_noplot(pixel,x,y,length,azimuth);
+        %[BINARY,x1,x2,y1,y2]=voxelization2d(binary,MM,NN,pixel,x,y,length,azimuth);
+        binary=BINARY;
+        AZIMUTH_B{j}=[AZIMUTH_B{j},azimuth];
+        x_butt_end{j}=[x_butt_end{j},x1,x2];
+        y_butt_end{j}=[y_butt_end{j},y1,y2];
+        hold on
+        CT{j}=[CT{j};length,azimuth];
+    end
+end
+
+
+%-------------------INTERSECTION-------------------------------------------
+%>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+%<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+for i=1:size(xtoll,2)
+    x_inter{i}=[];
+    y_inter{i}=[];
+    for j=1:size(xtoll{i},1)
+        x_inter{i}=[x_inter{i},xtoll{i}(j,:),NaN];
+        y_inter{i}=[y_inter{i},ytoll{i}(j,:),NaN];
+    end
+end
+P1_B=[];
+P2_B=[];
+ct_horiz=[];
+for j=1:nr_butt
+       L2=[x_inter{j};y_inter{j}];
+       L3=[x_inter{j+1};y_inter{j+1}]; %l2 and l3 are face cleats
+       
+       P=[];
+    for i=1:size(yy{j},2)
+       L1=[x_butt_end{j}(i*2-1),x_butt_end{j}(i*2);y_butt_end{j}(i*2-1),y_butt_end{j}(i*2)]; %l1 is butt cleats
+       PP1 = InterX(L1,L2);
+       PP2 = InterX(L1,L3);
+       if (isempty(PP1)==0 && isempty(PP2)==0);
+       P=[PP1,PP2];
+       x=mean(P(1,:));
+       y=mean(P(2,:));
+       length=sqrt((P(1,1)-P(1,2))^2+(P(2,1)-P(2,2))^2);
+       BINARY=voxelization2d(binary,MM,NN,pixel,x,y,length,CT{j}(i,2));
+       binary=BINARY;
+       %[binary]=voxelization2d_end(binary,MM,NN,pixel,P(1,:),P(2,:),CT{j}(1),CT{j}(2));
+       %plot(P(1,:),P(2,:));
+       hold on
+       P1_B=[P1_B;PP1',0];
+       P2_B=[P2_B;PP2',0];
+       %PP=[PP,P];
+       ct_horiz=[ct_horiz;x,y,length,CT{j}(i,2)];
+       else end
+    end
+end
+ct=[ct_vert;ct_horiz];
+length_horiz_total=sum(sum(logical(load('segmentedsq_horizental_final.txt'))));
+bin=binary(MM/2-m/2:MM/2+m/2-1,NN/2-n/2:NN/2+n/2-1);
+length_horiz_check=sum(sum(bin))-length_vert_check;
+
+axis([(M-m*pixel)/2 (M-(M-m*pixel)/2) (N-n*pixel)/2 (N-(N-n*pixel)/2) 0 H]);
+axis equal
+
+dip_dist=load('left_vertical_orientation.txt');%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+p_mid_b={};
+for i=1:size(yy,2)
+    p_mid_b{i}=[xx_mid(i)*ones(size(yy{:,i},2),1),yy{:,i}',zeros(size(yy{:,i},2),1)];
+end
+
+for j=1:nr_butt
+    x_butt_end{j}=[];
+    y_butt_end{j}=[];
+    %CT{j}=[];
+    %for i=1:fix(nr/nr_butt)
+    %x=gapx+rand(1,1)*M;
+    x=xx_mid(j);
+    %x=xx_mid(randperm(size(xx_mid,2),1));
+    %y=gapy+rand(1,1)*N;
+    Y=yy{j};%(randperm(size(yy{j},2),size(yy{j},2)));
+    for i=1:size(Y,2)
+        y=Y(i);
+        length=SPACE(j)*3;
+        %length=length_dist(randperm(size(length_dist,1),1));
+        %azimuth=azimuth_dist(randperm(size(azimuth_dist,1),1));
+        azimuth=AZIMUTH_B{j}(i);
+        [x1,x2,y1,y2]=voxelization2d_noplot(pixel,x,y,length,azimuth);
+        %[BINARY,x1,x2,y1,y2]=voxelization2d(binary,MM,NN,pixel,x,y,length,azimuth);
+        binary=BINARY;
+        %AZIMUTH_B=[AZIMUTH_B,azimuth];
+        x_butt_end{j}=[x_butt_end{j},x1,x2];
+        y_butt_end{j}=[y_butt_end{j},y1,y2];
+        hold on
+        %CT{j}=[CT{j};length,azimuth];
+    end
+end
+
+
+%intersection
+for i=1:size(xtoll_1,2)
+    x_inter{i}=[];
+    y_inter{i}=[];
+    for j=1:size(xtoll_1{i},1)
+        x_inter{i}=[x_inter{i},xtoll_1{i}(j,:),NaN];
+        y_inter{i}=[y_inter{i},ytoll_1{i}(j,:),NaN];
+    end
+end
+P3_B=[];
+P4_B=[];
+ct_horiz_1=[];
+for j=1:nr_butt
+       L2=[x_inter{j};y_inter{j}];
+       L3=[x_inter{j+1};y_inter{j+1}]; %l2 and l3 are face cleats
+       
+       P=[];
+    for i=1:size(yy{j},2)
+       L1=[x_butt_end{j}(i*2-1),x_butt_end{j}(i*2);y_butt_end{j}(i*2-1),y_butt_end{j}(i*2)]; %l1 is butt cleats
+       PP1 = InterX(L1,L2);
+       PP2 = InterX(L1,L3);
+       if (isempty(PP1)==0 && isempty(PP2)==0);
+       P=[PP1,PP2];
+       x=mean(P(1,:));
+       y=mean(P(2,:));
+       length=sqrt((P(1,1)-P(1,2))^2+(P(2,1)-P(2,2))^2);
+       BINARY=voxelization3d(binary,MM,NN,h,pixel,x,y,length,CT{j}(i,2));
+       binary=BINARY;
+       %[binary]=voxelization2d_end(binary,MM,NN,pixel,P(1,:),P(2,:),CT{j}(1),CT{j}(2));
+       %plot(P(1,:),P(2,:));
+       hold on
+       P3_B=[P3_B;PP1',H];
+       P4_B=[P4_B;PP2',H];
+       %PP=[PP,P];
+       ct_horiz_1=[ct_horiz_1;x,y,length,CT{j}(i,2)];
+       else end
+    end
+end
+
+%----plot
+for i=1:size(P1_B,1)
+    x_plot=[P1_B(i,1);P2_B(i,1);P4_B(i,1);P3_B(i,1)];
+    y_plot=[P1_B(i,2);P2_B(i,2);P4_B(i,2);P3_B(i,2)];
+    z_plot=[P1_B(i,3);P2_B(i,3);P4_B(i,3);P3_B(i,3)];
+    color=['r','g','b','c','m','y',];
+    j=randi([1,6],1);
+    patch(x_plot,y_plot,z_plot,color(j),'edgecolor',color(j),'facealpha',1);
+    hold on
+end
+%%
+axis([(M-m*pixel)/2 (M-(M-m*pixel)/2) (N-n*pixel)/2 (N-(N-n*pixel)/2) 0 H]);
+axis equal
