@@ -1,0 +1,103 @@
+%==========================================================================
+%Local percolation properties
+%==========================================================================
+function [ poro, perc,perc_3,perc_2,perc_1 ] = poro_perc_p_3direction( mat, l, bin )
+%scan the geometry mat with a window of side length l, the output is porosity probability
+%when l is odd
+
+[m, n, h]=size(mat);
+radi=(l-1)/2;
+rangex=radi+1:n-radi;
+rangey=radi+1:m-radi;
+rangez=radi+1:h-radi;
+ind_x=randi(length(rangex), bin);
+ind_y=randi(length(rangey), bin);
+ind_z=randi(length(rangez), bin);
+x=rangex(ind_x);
+y=rangex(ind_y);
+z=rangex(ind_z);
+for i=1:length(x)
+    subsample=mat(y(i)-radi:y(i)+radi,x(i)-radi:x(i)+radi,z(i)-radi:z(i)+radi);
+    poro(i)=sum(subsample(:))/numel(subsample);
+    if poro(i)==0
+        perc(i)=0;
+    else if poro(i)==1
+            perc(i)=1;
+        else
+        subsample_label=bwlabeln(subsample);
+       % perc(i)=isempty(setdiff(unique(subsample_label(:,:,1)),unique(subsample_label(:,:,end))));
+        cluster_3=intersect(unique(subsample_label(:,:,1)),unique(subsample_label(:,:,end)),'rows'); 
+        perc_3(i)=~isempty(find(cluster_3>0, 1));
+        cluster_2=intersect(unique(subsample_label(:,1,:)),unique(subsample_label(:,end,:)),'rows'); 
+        perc_2(i)=~isempty(find(cluster_2>0, 1));
+        cluster_1=intersect(unique(subsample_label(1,:,:)),unique(subsample_label(end,:,:)),'rows'); 
+        perc_1(i)=~isempty(find(cluster_1>0, 1));
+        perc(i)=perc_3(i)*perc_2(i)*perc_1(i);
+        end
+    
+    end
+end
+%==========================================================================
+derivation models
+%==========================================================================
+step=unique(mat_deflation(:));
+%mat_derivation=mat_deflation;
+voxelsize=0.0165;
+
+for i=1:(length(step)-1)
+    mat_derivation=mat_deflation;
+    phase=step(i+1);
+    %phase=step(end-i+1);
+    mat_derivation(mat_deflation<=phase)=0; 
+    mat_derivation(mat_derivation~=0)=1;
+    
+    %mat_derivation_down=downsample(mat_derivation,1/2);
+    mat_cluster=largest_cluster(mat_derivation);
+    %[chi(i), ~] = imEuler3d(mat_cluster, 26);
+    v_perc(i)=sum(mat_cluster(:))/sum(logical(mat_deflation(:)));
+    %filename2=sprintf('derivation_model_inflation_%d.nc',phase);
+    %morphy_NC(mat_derivation,voxelsize,filename2);
+    %clear mat_derivation
+end
+%chi=fliplr(chi);
+%%
+%mat_derivation=double(mat_derivation);
+%imwrite(mat_derivation,'derication_test.tif');
+
+%==========================================================================
+%percolation threshold using deflation
+%==========================================================================
+
+%mat_cleat=permute(mat,[1 3 2]);  %original
+%mat_cleat=mat;  %realisation
+mat_cleat=double(mat_cleat);
+mat_cleat_3=imresize3(mat_cleat,3,'nearest');
+%%
+step=5;
+[ mat_deflation ] = deflation(mat,step );    %target phase is matris, so mat should be ~
+%morphy_NC( mat_deflation,0.0165,'test.nc');
+%%
+perc=[];
+mat_deflation_binary=mat_deflation;
+%mat_deflation_binary=permute(mat_deflation_binary,[1 3 2]);   %in the direction of horizental
+mat_deflation_binary=permute(mat_deflation_binary,[3 2 1]);   %in the direction of vertical
+mat_deflation_binary(:,:,1:step)= [];
+mat_deflation_binary(:,:,end-step:end)=[];
+mat_deflation_edge=mat_deflation_binary;
+
+poro=[];
+for i=1:step
+    mat_deflation_binary(mat_deflation_edge==(i+1))=0;   
+    mat_label=bwlabeln(logical(mat_deflation_binary));
+    cluster=intersect(unique(mat_label(:,:,1)),unique(mat_label(:,:,end)),'rows'); 
+    perc(i)=~isempty(find(cluster>0, 1));
+    poro(i)=sum(logical(mat_deflation_binary(:)))/numel(mat_deflation_binary);
+end
+
+perc_filter=perc(find(perc));
+i=length(perc_filter);
+
+clear mat_deflation_binary
+mat_critical=mat_deflation_edge;
+mat_critical(mat_deflation_edge<=(i+1)& mat_deflation_edge>1)=0;   %critical model
+percolation_threshold=poro(i);%sum(logical(mat_critical(:)))/numel(mat_critical);
