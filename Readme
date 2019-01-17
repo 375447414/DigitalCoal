@@ -1,0 +1,6 @@
+To run this code, you need to input your binary micro-CT image data, where the target phase to be analysed is white (logical true, “1”) and the remaining phases are black (logical false, “0”).
+
+It contains several modules including segmentatioed image pre-processing, statistics extraction and digital coal modelling.
+
+If you use these codes please cite the paper below:
+Jing, Y., Armstrong, R., Ramandi, H.L., & Mostaghimi, P. (2019) "DigiCoal: A computational platform for characterisation of coal cores". Journal of Petroleum Science and Engineering. Under revew.
